@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        midnight: '#101828',
+        midnight: '#123C69',
         signal: '#E23744',
         amber: '#F2B705',
         paper: '#FBFAF8',
