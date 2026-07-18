@@ -1,14 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 
 const LiveMap = dynamic(() => import('@/app/components/LiveMap'), { ssr: false });
+const OFFER_WINDOW_SECONDS = 25;
 
 export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }) {
   const [trip, setTrip] = useState<any>(null);
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
-  const [completing, setCompleting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [countdown, setCountdown] = useState(OFFER_WINDOW_SECONDS);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const watchId = navigator.geolocation.watchPosition((pos) => {
@@ -25,21 +28,54 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     const channel = supabase
       .channel('driver-trips')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_requests', filter: `ambulance_id=eq.${ambulanceId}` },
-        (payload) => setTrip(payload.new))
+        (payload) => handleIncoming(payload.new))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trip_requests', filter: `ambulance_id=eq.${ambulanceId}` },
+        (payload) => handleIncoming(payload.new))
       .subscribe();
 
-    return () => { navigator.geolocation.clearWatch(watchId); supabase.removeChannel(channel); };
+    return () => { navigator.geolocation.clearWatch(watchId); supabase.removeChannel(channel); if (timerRef.current) clearInterval(timerRef.current); };
   }, [ambulanceId]);
+
+  const handleIncoming = (row: any) => {
+    if (row.status === 'offered') {
+      setTrip(row);
+      setCountdown(OFFER_WINDOW_SECONDS);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setCountdown((c) => {
+          if (c <= 1) { clearInterval(timerRef.current!); setTrip(null); return OFFER_WINDOW_SECONDS; }
+          return c - 1;
+        });
+      }, 1000);
+    } else if (row.status === 'accepted') {
+      setTrip(row);
+      if (timerRef.current) clearInterval(timerRef.current);
+    } else {
+      setTrip(null);
+      if (timerRef.current) clearInterval(timerRef.current);
+    }
+  };
+
+  const respond = async (response: 'accept' | 'decline') => {
+    if (!trip) return;
+    setBusy(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+    await fetch('/api/driver/respond', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId: trip.id, ambulanceId, response }),
+    });
+    setBusy(false);
+    if (response === 'decline') setTrip(null); else setTrip({ ...trip, status: 'accepted' });
+  };
 
   const completeTrip = async () => {
     if (!trip) return;
-    setCompleting(true);
+    setBusy(true);
     const res = await fetch('/api/driver/complete-trip', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripId: trip.id, ambulanceId }),
     });
-    setCompleting(false);
+    setBusy(false);
     if (res.ok) setTrip(null);
   };
 
@@ -53,16 +89,24 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
         </div>
       )}
 
-      {trip && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+      {trip && trip.status === 'offered' && (
+        <div className="bg-white border-2 border-amber-400 rounded-xl p-4 shadow-sm space-y-3">
           <p className="text-lg font-semibold text-gray-900">New trip request</p>
           <p className="text-sm text-gray-600">Rider: <span className="font-medium">{trip.rider_phone}</span></p>
-          <button
-            className="w-full bg-green-600 hover:bg-green-700 transition text-white rounded-lg p-3 font-semibold disabled:opacity-50"
-            onClick={completeTrip}
-            disabled={completing}
-          >
-            {completing ? 'Completing…' : 'Mark Completed'}
+          <p className="text-sm font-mono text-amber-600">Respond within {countdown}s or it goes to the next ambulance</p>
+          <div className="flex gap-3">
+            <button className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50" onClick={() => respond('accept')} disabled={busy}>Accept</button>
+            <button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg p-3 font-semibold disabled:opacity-50" onClick={() => respond('decline')} disabled={busy}>Decline</button>
+          </div>
+        </div>
+      )}
+
+      {trip && trip.status === 'accepted' && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+          <p className="text-lg font-semibold text-gray-900">Trip in progress</p>
+          <p className="text-sm text-gray-600">Rider: <span className="font-medium">{trip.rider_phone}</span></p>
+          <button className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50" onClick={completeTrip} disabled={busy}>
+            {busy ? 'Completing…' : 'Mark Completed'}
           </button>
         </div>
       )}
