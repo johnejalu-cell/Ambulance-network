@@ -153,6 +153,7 @@ export default function Home() {
       <footer className="max-w-6xl mx-auto px-6 py-8 flex justify-between items-center text-sm text-slate">
         <span>Ambulance Network — Uganda</span>
         <div className="flex gap-4">
+          <Link href="/membership" className="hover:text-midnight transition">Priority Membership</Link>
           <Link href="/driver" className="hover:text-midnight transition">Driver login</Link>
           <Link href="/admin" className="hover:text-midnight transition">Admin</Link>
         </div>
