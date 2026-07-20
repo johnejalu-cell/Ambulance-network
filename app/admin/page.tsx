@@ -19,6 +19,7 @@ export default function AdminPage() {
   const [trips, setTrips] = useState<any[]>([]);
   const [memberships, setMemberships] = useState<any[]>([]);
   const [payers, setPayers] = useState<any[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
 
   const [newAmb, setNewAmb] = useState({ mp_name: '', constituency: '', plate: '', driver_name: '', driver_phone: '' });
   const [subPlan, setSubPlan] = useState<Record<string, string>>({});
@@ -54,6 +55,9 @@ export default function AdminPage() {
 
     const { data: payerRows } = await supabase.from('payer_accounts').select('*').order('created_at', { ascending: false });
     setPayers(payerRows || []);
+
+    const appsRes = await fetch('/api/admin/applications');
+    if (appsRes.ok) { const appsData = await appsRes.json(); setApplications(appsData.applications || []); }
   };
 
   useEffect(() => { if (authed) loadData(); }, [authed]);
@@ -98,6 +102,16 @@ export default function AdminPage() {
 
   const confirmPayment = async (subscriptionId: string) => {
     await fetch('/api/admin/subscriptions/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscriptionId }) });
+    loadData();
+  };
+
+  const approveApplication = async (applicationId: string) => {
+    await fetch('/api/admin/applications/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId }) });
+    loadData();
+  };
+
+  const rejectApplication = async (applicationId: string) => {
+    await fetch('/api/admin/applications/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId }) });
     loadData();
   };
 
@@ -241,6 +255,25 @@ export default function AdminPage() {
         })}
       </section>
 
+      {/* New ambulance applications */}
+      <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+        <h2 className="font-semibold text-lg text-gray-900">New Applications</h2>
+        {applications.filter((a) => a.status === 'pending').length === 0 && (
+          <p className="text-sm text-gray-500">No pending applications.</p>
+        )}
+        {applications.filter((a) => a.status === 'pending').map((a) => (
+          <div key={a.id} className="border-b last:border-0 py-3 text-sm space-y-2">
+            <p className="font-medium text-gray-900">{a.mp_name} — {a.constituency}</p>
+            <p className="text-gray-600">Driver: {a.driver_name} ({a.driver_phone}) — Plate: {a.plate}</p>
+            {a.contact_phone && <p className="text-gray-500">Alt contact: {a.contact_phone}</p>}
+            <div className="flex gap-2">
+              <button className="bg-green-600 text-white rounded-lg px-3 py-1.5 text-xs font-semibold" onClick={() => approveApplication(a.id)}>Approve</button>
+              <button className="bg-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-xs font-semibold" onClick={() => rejectApplication(a.id)}>Reject</button>
+            </div>
+          </div>
+        ))}
+      </section>
+
       {/* Add Ambulance */}
       <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
         <h2 className="font-semibold text-lg text-gray-900">Add Ambulance</h2>
@@ -264,6 +297,7 @@ export default function AdminPage() {
                 <th className="py-2 pr-4">Driver</th>
                 <th className="py-2 pr-4">Status</th>
                 <th className="py-2 pr-4">Subscription</th>
+                <th className="py-2 pr-4">Driver Link</th>
                 <th className="py-2 pr-4">Record Payment</th>
               </tr>
             </thead>
@@ -284,6 +318,9 @@ export default function AdminPage() {
                           {active ? 'Active' : 'Expired'} until {sub.period_end}
                         </span>
                       ) : <span className="text-red-600">No subscription</span>}
+                    </td>
+                    <td className="py-2 pr-4">
+                      <button className="text-xs text-blue-700 font-medium" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/driver/${a.id}`)}>Copy Link</button>
                     </td>
                     <td className="py-2 pr-4">
                       <div className="flex gap-2 items-center">
