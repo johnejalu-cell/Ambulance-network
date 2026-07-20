@@ -11,10 +11,12 @@ type Status = 'idle' | 'loading' | 'active' | 'none' | 'unmatched';
 export default function RequestAmbulance() {
   const [status, setStatus] = useState<Status>('idle');
   const [phone, setPhone] = useState('');
+  const [insuranceCode, setInsuranceCode] = useState('');
   const [driverPhone, setDriverPhone] = useState('');
   const [tripId, setTripId] = useState<string | null>(null);
   const [tripStatus, setTripStatus] = useState<string>('offered');
   const [fare, setFare] = useState<number | null>(null);
+  const [payerLabel, setPayerLabel] = useState<string | null>(null);
   const [ambulanceId, setAmbulanceId] = useState<string | null>(null);
   const [riderPos, setRiderPos] = useState<[number, number] | null>(null);
   const [ambulancePos, setAmbulancePos] = useState<[number, number] | null>(null);
@@ -31,7 +33,7 @@ export default function RequestAmbulance() {
 
       const res = await fetch('/api/request-ambulance', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ riderPhone: phone, lat, lng }),
+        body: JSON.stringify({ riderPhone: phone, lat, lng, insuranceCode: insuranceCode || undefined }),
       });
       if (res.status === 404) return setStatus('none');
       const data = await res.json();
@@ -40,6 +42,7 @@ export default function RequestAmbulance() {
       setAmbulanceId(data.trip.ambulance_id);
       setTripStatus(data.trip.status);
       setFare(data.trip.fare_charged_ugx);
+      setPayerLabel(data.trip.payer_label);
       setStatus('active');
       startOfferTimer();
     }, () => setStatus('none'));
@@ -105,7 +108,7 @@ export default function RequestAmbulance() {
   }, [ambulanceId]);
 
   const reset = () => {
-    setStatus('idle'); setTripId(null); setAmbulanceId(null); setAmbulancePos(null); setDriverPhone('');
+    setStatus('idle'); setTripId(null); setAmbulanceId(null); setAmbulancePos(null); setDriverPhone(''); setPayerLabel(null);
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
@@ -126,6 +129,10 @@ export default function RequestAmbulance() {
           <input
             className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
             placeholder="Your phone number" value={phone} onChange={(e) => setPhone(e.target.value)}
+          />
+          <input
+            className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-red-500 focus:outline-none"
+            placeholder="Insurance/Membership code (optional)" value={insuranceCode} onChange={(e) => setInsuranceCode(e.target.value)}
           />
           <button
             className="w-full bg-red-600 hover:bg-red-700 transition text-white rounded-lg p-4 text-lg font-semibold shadow-md disabled:opacity-50"
@@ -150,7 +157,11 @@ export default function RequestAmbulance() {
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-1">
             <p className="text-lg font-semibold text-gray-900">{statusLabel[tripStatus] || tripStatus}</p>
             <p className="text-sm text-gray-600">Driver: <span className="font-medium">{driverPhone}</span></p>
-            {fare !== null && <p className="text-sm text-gray-600">Fare: <span className="font-medium">UGX {fare.toLocaleString()}</span> (pay driver directly)</p>}
+            {fare !== null && (
+              <p className="text-sm text-gray-600">
+                {payerLabel ? <>Covered by <span className="font-medium">{payerLabel}</span> — no cash needed</> : <>Fare: <span className="font-medium">UGX {fare.toLocaleString()}</span> (pay driver directly)</>}
+              </p>
+            )}
           </div>
 
           {riderPos && (
