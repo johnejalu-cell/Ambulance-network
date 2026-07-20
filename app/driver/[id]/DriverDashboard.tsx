@@ -140,6 +140,11 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
         <div className="bg-white border-2 border-amber-400 rounded-xl p-4 shadow-sm space-y-3">
           <p className="text-lg font-semibold text-gray-900">New trip request</p>
           <p className="text-sm text-gray-600">Rider: <span className="font-medium">{trip.rider_phone}</span></p>
+          {trip.payment_method !== 'cash' ? (
+            <p className="text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-2">No cash — billed to {trip.payer_label}</p>
+          ) : (
+            <p className="text-sm text-gray-500">Collect cash payment on arrival</p>
+          )}
           <p className="text-sm font-mono text-amber-600">Respond within {countdown}s or it goes to the next ambulance</p>
           <div className="flex gap-3">
             <button className="flex-1 bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50" onClick={() => respond('accept')} disabled={busy}>Accept</button>
@@ -152,6 +157,11 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
         <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
           <p className="text-lg font-semibold text-gray-900">Trip in progress</p>
           <p className="text-sm text-gray-600">Rider: <span className="font-medium">{trip.rider_phone}</span></p>
+          {trip.payment_method !== 'cash' ? (
+            <p className="text-sm font-medium text-blue-700 bg-blue-50 rounded-lg p-2">No cash — billed to {trip.payer_label}</p>
+          ) : (
+            <p className="text-sm text-gray-500">Collect cash payment on arrival</p>
+          )}
           <button className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50" onClick={completeTrip} disabled={busy}>
             {busy ? 'Completing…' : 'Mark Completed'}
           </button>
@@ -181,11 +191,11 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
             ))}
           </tbody>
         </table>
-        <div className="bg-gray-50 rounded-lg p-3 text-sm">
-          <p className="text-gray-500">Pay via Mobile Money to:</p>
+        <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+          <p className="text-gray-500">Pay via MTN Mobile Money:</p>
           <p className="font-mono font-semibold text-gray-900 text-base">{momoCode || 'Not set yet'}</p>
           <p className="text-gray-500">{momoName}</p>
-          <p className="text-gray-500 mt-2">Dial <span className="font-mono">*165*3#</span> (MTN Mobile Money), choose "Pay Merchant," enter the code above.</p>
+          <p className="text-gray-500 pt-1">Dial <span className="font-mono">*165*3#</span>, choose "Pay Merchant," enter the code above.</p>
         </div>
         <div className="flex gap-2">
           <select className="flex-1 border border-gray-300 rounded-lg p-2 text-sm" value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value)}>
