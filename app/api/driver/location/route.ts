@@ -11,8 +11,13 @@ export async function POST(req: Request) {
 
   const { error } = await supabaseAdmin
     .from('ambulances')
-    .update({ location: `SRID=4326;POINT(${lng} ${lat})`, updated_at: new Date().toISOString() })
-    .eq('id', ambulanceId);
+    .update({
+      location: `SRID=4326;POINT(${lng} ${lat})`,
+      updated_at: new Date().toISOString(),
+      status: 'available',
+    })
+    .eq('id', ambulanceId)
+    .neq('status', 'busy');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
