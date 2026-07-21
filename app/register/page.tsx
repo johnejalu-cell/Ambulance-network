@@ -2,7 +2,7 @@
 import { useState } from 'react';
 
 export default function Register() {
-  const [form, setForm] = useState({ mp_name: '', constituency: '', plate: '', driver_name: '', driver_phone: '', contact_phone: '' });
+  const [form, setForm] = useState({ mp_name: '', constituency: '', plate: '', driver_name: '', driver_phone: '', sponsor_phone: '', sponsor_email: '' });
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value });
@@ -36,7 +36,8 @@ export default function Register() {
       <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Vehicle plate number" value={form.plate} onChange={set('plate')} />
       <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Driver's name" value={form.driver_name} onChange={set('driver_name')} />
       <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Driver's phone number" value={form.driver_phone} onChange={set('driver_phone')} />
-      <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Alternate contact (optional)" value={form.contact_phone} onChange={set('contact_phone')} />
+      <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Sponsor's phone number" value={form.sponsor_phone} onChange={set('sponsor_phone')} />
+      <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Sponsor's email" value={form.sponsor_email} onChange={set('sponsor_email')} />
 
       {status === 'error' && <p className="text-red-600 text-sm">Something went wrong — please try again.</p>}
 
@@ -47,6 +48,10 @@ export default function Register() {
       >
         {status === 'sending' ? 'Submitting…' : 'Submit Application'}
       </button>
+
+      <p className="text-center text-sm text-gray-500">
+        Questions? WhatsApp us at <a href="https://wa.me/256763441988" className="text-red-600 font-medium">+256 763 441988</a>
+      </p>
     </main>
   );
 }
