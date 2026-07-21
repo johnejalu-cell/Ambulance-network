@@ -62,6 +62,12 @@ export default function AdminPage() {
 
   useEffect(() => { if (authed) loadData(); }, [authed]);
 
+  useEffect(() => {
+    if (!authed) return;
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, [authed]);
+
   const savePricing = async () => {
     await fetch('/api/admin/pricing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rider_fare_ugx: fare, momo_merchant_code: momoCode, momo_merchant_name: momoName }) });
     await fetch('/api/admin/membership-pricing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ membership_monthly_ugx: membershipMonthly, membership_annual_ugx: membershipAnnual }) });
@@ -145,7 +151,12 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 p-6 max-w-4xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+        <button className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" onClick={loadData}>
+          Refresh
+        </button>
+      </div>
 
       {/* Pricing */}
       <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
@@ -265,7 +276,9 @@ export default function AdminPage() {
           <div key={a.id} className="border-b last:border-0 py-3 text-sm space-y-2">
             <p className="font-medium text-gray-900">{a.mp_name} — {a.constituency}</p>
             <p className="text-gray-600">Driver: {a.driver_name} ({a.driver_phone}) — Plate: {a.plate}</p>
-            {a.contact_phone && <p className="text-gray-500">Alt contact: {a.contact_phone}</p>}
+            {(a.sponsor_phone || a.sponsor_email) && (
+              <p className="text-gray-500">Sponsor contact: {a.sponsor_phone}{a.sponsor_phone && a.sponsor_email ? ' — ' : ''}{a.sponsor_email}</p>
+            )}
             <div className="flex gap-2">
               <button className="bg-green-600 text-white rounded-lg px-3 py-1.5 text-xs font-semibold" onClick={() => approveApplication(a.id)}>Approve</button>
               <button className="bg-gray-200 text-gray-800 rounded-lg px-3 py-1.5 text-xs font-semibold" onClick={() => rejectApplication(a.id)}>Reject</button>
