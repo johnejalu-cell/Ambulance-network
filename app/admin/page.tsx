@@ -20,6 +20,7 @@ export default function AdminPage() {
   const [memberships, setMemberships] = useState<any[]>([]);
   const [payers, setPayers] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [newAmb, setNewAmb] = useState({ mp_name: '', constituency: '', plate: '', driver_name: '', driver_phone: '' });
   const [subPlan, setSubPlan] = useState<Record<string, string>>({});
@@ -35,16 +36,19 @@ export default function AdminPage() {
   };
 
   const loadData = async () => {
+    setRefreshing(true);
     const { data: settings } = await supabase.from('platform_settings').select('rider_fare_ugx, momo_merchant_code, momo_merchant_name, membership_monthly_ugx, membership_annual_ugx').eq('id', 1).single();
     if (settings) {
       setFare(settings.rider_fare_ugx); setMomoCode(settings.momo_merchant_code || ''); setMomoName(settings.momo_merchant_name || '');
       setMembershipMonthly(settings.membership_monthly_ugx); setMembershipAnnual(settings.membership_annual_ugx);
     }
 
-    const { data: ambs } = await supabase.from('ambulances').select('*').order('created_at', { ascending: false });
+    const { data: ambs, error: ambsError } = await supabase.from('ambulances').select('*').order('updated_at', { ascending: false });
+    if (ambsError) console.error('ambulances load error', ambsError);
     setAmbulances(ambs || []);
 
-    const { data: subscriptions } = await supabase.from('ambulance_subscriptions').select('*').order('period_end', { ascending: false });
+    const { data: subscriptions, error: subsError } = await supabase.from('ambulance_subscriptions').select('*').order('period_end', { ascending: false });
+    if (subsError) console.error('subscriptions load error', subsError);
     setSubs(subscriptions || []);
 
     const { data: tripRows } = await supabase.from('trip_requests').select('*').order('created_at', { ascending: false }).limit(20);
@@ -58,6 +62,7 @@ export default function AdminPage() {
 
     const appsRes = await fetch('/api/admin/applications');
     if (appsRes.ok) { const appsData = await appsRes.json(); setApplications(appsData.applications || []); }
+    setRefreshing(false);
   };
 
   useEffect(() => { if (authed) loadData(); }, [authed]);
@@ -153,8 +158,8 @@ export default function AdminPage() {
     <main className="min-h-screen bg-gray-50 p-6 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <button className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" onClick={loadData}>
-          Refresh
+        <button className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" onClick={loadData} disabled={refreshing}>
+          {refreshing ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
 
