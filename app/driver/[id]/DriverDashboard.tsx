@@ -19,12 +19,48 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const [countdown, setCountdown] = useState(OFFER_WINDOW_SECONDS);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const alertIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const [momoCode, setMomoCode] = useState('');
   const [momoName, setMomoName] = useState('');
   const [subscription, setSubscription] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState('monthly');
   const [paying, setPaying] = useState(false);
   const [paidNotice, setPaidNotice] = useState(false);
+
+  const enableSound = () => {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    audioCtxRef.current = ctx;
+    setSoundEnabled(true);
+  };
+
+  const playBeep = () => {
+    const ctx = audioCtxRef.current;
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.4);
+  };
+
+  const startAlertLoop = () => {
+    if (!soundEnabled) return;
+    playBeep();
+    if (alertIntervalRef.current) clearInterval(alertIntervalRef.current);
+    alertIntervalRef.current = setInterval(playBeep, 3000);
+  };
+
+  const stopAlertLoop = () => {
+    if (alertIntervalRef.current) { clearInterval(alertIntervalRef.current); alertIntervalRef.current = null; }
+  };
 
   useEffect(() => {
     (async () => {
@@ -73,25 +109,28 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
         (payload) => handleIncoming(payload.new))
       .subscribe();
 
-    return () => { navigator.geolocation.clearWatch(watchId); supabase.removeChannel(channel); if (timerRef.current) clearInterval(timerRef.current); };
+    return () => { navigator.geolocation.clearWatch(watchId); supabase.removeChannel(channel); if (timerRef.current) clearInterval(timerRef.current); stopAlertLoop(); };
   }, [ambulanceId]);
 
   const handleIncoming = (row: any) => {
     if (row.status === 'offered') {
       setTrip(row);
       setCountdown(OFFER_WINDOW_SECONDS);
+      startAlertLoop();
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setCountdown((c) => {
-          if (c <= 1) { clearInterval(timerRef.current!); setTrip(null); return OFFER_WINDOW_SECONDS; }
+          if (c <= 1) { clearInterval(timerRef.current!); stopAlertLoop(); setTrip(null); return OFFER_WINDOW_SECONDS; }
           return c - 1;
         });
       }, 1000);
     } else if (row.status === 'accepted') {
       setTrip(row);
+      stopAlertLoop();
       if (timerRef.current) clearInterval(timerRef.current);
     } else {
       setTrip(null);
+      stopAlertLoop();
       if (timerRef.current) clearInterval(timerRef.current);
     }
   };
@@ -100,6 +139,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     if (!trip) return;
     setBusy(true);
     if (timerRef.current) clearInterval(timerRef.current);
+    stopAlertLoop();
     await fetch('/api/driver/respond', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripId: trip.id, ambulanceId, response }),
@@ -122,6 +162,18 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   return (
     <main className="min-h-screen bg-gray-50 p-6 max-w-md mx-auto space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
+
+      {!soundEnabled && (
+        <button
+          className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl p-4 font-semibold shadow-md"
+          onClick={enableSound}
+        >
+          🔔 Tap to Enable Sound Alerts
+        </button>
+      )}
+      {soundEnabled && (
+        <p className="text-xs text-gray-500 text-center">🔔 Sound alerts on — keep this tab open to hear new requests</p>
+      )}
 
       {/* Subscription status banner */}
       <div className={`border rounded-xl p-4 shadow-sm ${isActive ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
