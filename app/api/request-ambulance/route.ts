@@ -9,6 +9,8 @@ export async function POST(req: Request) {
   const { data: match, error: matchErr } = await supabaseAdmin
     .rpc('nearest_available_ambulance', { p_lat: lat, p_lng: lng, p_exclude: [] });
 
+  if (matchErr) console.error('nearest_available_ambulance RPC error:', matchErr);
+
   if (matchErr || !match?.length) {
     return NextResponse.json({ error: 'No ambulance currently available' }, { status: 404 });
   }
@@ -60,7 +62,10 @@ export async function POST(req: Request) {
     })
     .select().single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error('trip_requests insert error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   await supabaseAdmin.from('ambulances').update({ status: 'busy' }).eq('id', ambulanceId);
 
