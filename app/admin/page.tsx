@@ -121,6 +121,11 @@ export default function AdminPage() {
     loadData();
   };
 
+  const setAmbulanceStatus = async (ambulanceId: string, status: string) => {
+    await fetch('/api/admin/ambulances/set-status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ambulanceId, status }) });
+    loadData();
+  };
+
   const rejectApplication = async (applicationId: string) => {
     await fetch('/api/admin/applications/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId }) });
     loadData();
@@ -329,6 +334,10 @@ export default function AdminPage() {
                     <td className="py-2 pr-4">{a.driver_name}<br /><span className="text-gray-400">{a.driver_phone}</span></td>
                     <td className="py-2 pr-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${a.status === 'available' ? 'bg-green-100 text-green-700' : a.status === 'busy' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>{a.status}</span>
+                      <div className="flex gap-1 mt-1">
+                        <button className="text-xs text-green-700 underline" onClick={() => setAmbulanceStatus(a.id, 'available')}>Set Available</button>
+                        <button className="text-xs text-gray-500 underline" onClick={() => setAmbulanceStatus(a.id, 'offline')}>Set Offline</button>
+                      </div>
                     </td>
                     <td className="py-2 pr-4">
                       {sub ? (
