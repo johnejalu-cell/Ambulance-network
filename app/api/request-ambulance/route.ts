@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { notifyAmbulance } from '@/lib/webpush';
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
   }
 
   await supabaseAdmin.from('ambulances').update({ status: 'busy' }).eq('id', ambulanceId);
+  await notifyAmbulance(ambulanceId, { title: 'New Ambulance Request', body: `Rider needs pickup nearby — respond within 25s`, url: `/driver/${ambulanceId}` });
 
   return NextResponse.json({ trip, driverPhone: match[0].driver_phone });
 }
