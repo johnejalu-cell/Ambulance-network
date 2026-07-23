@@ -9,6 +9,8 @@ const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono', weigh
 export const metadata: Metadata = {
   title: 'Ambulance Network — One Call. Every Ambulance. All of Uganda.',
   description: 'Uganda\'s MP-owned ambulances, on one dispatch platform. Request the nearest available ambulance in seconds.',
+  manifest: '/manifest.json',
+  themeColor: '#E23744',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
