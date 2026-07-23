@@ -22,6 +22,26 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alertIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  const enablePush = async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      });
+      await fetch('/api/driver/subscribe-push', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ambulanceId, subscription: sub }),
+      });
+      setPushEnabled(true);
+    } catch (err) {
+      console.error('push subscribe failed', err);
+    }
+  };
 
   const [momoCode, setMomoCode] = useState('');
   const [momoName, setMomoName] = useState('');
@@ -173,6 +193,18 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       )}
       {soundEnabled && (
         <p className="text-xs text-gray-500 text-center">🔔 Sound alerts on — keep this tab open to hear new requests</p>
+      )}
+
+      {!pushEnabled && (
+        <button
+          className="w-full bg-gray-900 hover:bg-gray-800 text-white rounded-xl p-4 font-semibold shadow-md"
+          onClick={enablePush}
+        >
+          📲 Enable Notifications (works even with app closed)
+        </button>
+      )}
+      {pushEnabled && (
+        <p className="text-xs text-gray-500 text-center">📲 Notifications on — you'll be alerted even if this tab is closed</p>
       )}
 
       {/* Subscription status banner */}
