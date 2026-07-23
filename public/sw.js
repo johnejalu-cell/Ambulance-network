@@ -4,8 +4,8 @@ self.addEventListener('push', function (event) {
 
   const options = {
     body: data.body || 'Tap to open your dashboard',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     vibrate: [300, 100, 300, 100, 300],
     requireInteraction: true,
     tag: 'trip-offer',
