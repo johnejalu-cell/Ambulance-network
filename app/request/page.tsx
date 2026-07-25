@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
 
 const LiveMap = dynamic(() => import('@/app/components/LiveMap'), { ssr: false });
-const OFFER_WINDOW_SECONDS = 25;
+const OFFER_WINDOW_SECONDS = 60;
 
 type Status = 'idle' | 'loading' | 'active' | 'none' | 'unmatched';
 
@@ -185,4 +185,3 @@ export default function RequestAmbulance() {
     </main>
   );
 }
-
