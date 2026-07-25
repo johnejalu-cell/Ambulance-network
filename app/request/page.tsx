@@ -14,6 +14,7 @@ export default function RequestAmbulance() {
   const [insuranceCode, setInsuranceCode] = useState('');
   const [driverPhone, setDriverPhone] = useState('');
   const [tripId, setTripId] = useState<string | null>(null);
+  const tripIdRef = useRef<string | null>(null);
   const [tripStatus, setTripStatus] = useState<string>('offered');
   const [fare, setFare] = useState<number | null>(null);
   const [payerLabel, setPayerLabel] = useState<string | null>(null);
@@ -39,6 +40,7 @@ export default function RequestAmbulance() {
       const data = await res.json();
       setDriverPhone(data.driverPhone);
       setTripId(data.trip.id);
+      tripIdRef.current = data.trip.id;
       setAmbulanceId(data.trip.ambulance_id);
       setTripStatus(data.trip.status);
       setFare(data.trip.fare_charged_ugx);
@@ -60,11 +62,12 @@ export default function RequestAmbulance() {
   };
 
   const triggerReassign = async () => {
-    if (reassigningRef.current || !tripId) return;
+    const currentTripId = tripIdRef.current;
+    if (reassigningRef.current || !currentTripId) return;
     reassigningRef.current = true;
     const res = await fetch('/api/reassign-ambulance', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tripId }),
+      body: JSON.stringify({ tripId: currentTripId }),
     });
     const data = await res.json();
     reassigningRef.current = false;
@@ -108,7 +111,7 @@ export default function RequestAmbulance() {
   }, [ambulanceId]);
 
   const reset = () => {
-    setStatus('idle'); setTripId(null); setAmbulanceId(null); setAmbulancePos(null); setDriverPhone(''); setPayerLabel(null);
+    setStatus('idle'); setTripId(null); tripIdRef.current = null; setAmbulanceId(null); setAmbulancePos(null); setDriverPhone(''); setPayerLabel(null);
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
@@ -182,3 +185,4 @@ export default function RequestAmbulance() {
     </main>
   );
 }
+
