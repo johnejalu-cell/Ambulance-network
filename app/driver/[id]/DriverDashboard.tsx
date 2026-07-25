@@ -12,6 +12,15 @@ const PLANS = [
   { key: 'monthly', label: 'Monthly', amount: 120000 },
 ];
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
 export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }) {
   const [trip, setTrip] = useState<any>(null);
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
@@ -24,23 +33,42 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alertIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushDebug, setPushDebug] = useState('');
 
   const enablePush = async () => {
     try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        setPushDebug('This browser does not support push notifications');
+        return;
+      }
       const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
       const permission = await Notification.requestPermission();
-      if (permission !== 'granted') return;
+      if (permission !== 'granted') {
+        setPushDebug(`Permission ${permission} — notifications blocked in browser settings`);
+        return;
+      }
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!vapidKey) {
+        setPushDebug('Missing VAPID public key — check Vercel environment variables and redeploy');
+        return;
+      }
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
-      await fetch('/api/driver/subscribe-push', {
+      const res = await fetch('/api/driver/subscribe-push', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ambulanceId, subscription: sub }),
       });
+      if (!res.ok) {
+        setPushDebug(`Server rejected subscription: ${await res.text()}`);
+        return;
+      }
       setPushEnabled(true);
-    } catch (err) {
-      console.error('push subscribe failed', err);
+      setPushDebug('Subscribed successfully');
+    } catch (err: any) {
+      setPushDebug(`Push setup error: ${err?.message || String(err)}`);
     }
   };
 
@@ -239,6 +267,9 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       )}
       {pushEnabled && (
         <p className="text-xs text-gray-500 text-center">📲 Notifications on — you'll be alerted even if this tab is closed</p>
+      )}
+      {pushDebug && (
+        <p className="text-xs text-gray-400 text-center font-mono">{pushDebug}</p>
       )}
 
       {/* Subscription status banner */}
