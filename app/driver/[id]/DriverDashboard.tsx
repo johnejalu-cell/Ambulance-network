@@ -50,15 +50,17 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const [paying, setPaying] = useState(false);
   const [paidNotice, setPaidNotice] = useState(false);
 
-  const enableSound = () => {
+  const enableSound = async () => {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (ctx.state === 'suspended') await ctx.resume();
     audioCtxRef.current = ctx;
     setSoundEnabled(true);
   };
 
-  const playBeep = () => {
+  const playBeep = async () => {
     const ctx = audioCtxRef.current;
     if (!ctx) return;
+    if (ctx.state === 'suspended') await ctx.resume();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'square';
@@ -111,6 +113,20 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   };
 
   useEffect(() => {
+    // Catch any offer that arrived before this dashboard was open/subscribed —
+    // realtime only pushes future events, so a reload can otherwise miss a live offer.
+    (async () => {
+      const { data: existing } = await supabase
+        .from('trip_requests')
+        .select('*')
+        .eq('ambulance_id', ambulanceId)
+        .in('status', ['offered', 'accepted'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) handleIncoming(existing);
+    })();
+
     const watchId = navigator.geolocation.watchPosition((pos) => {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
@@ -294,3 +310,4 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     </main>
   );
 }
+
