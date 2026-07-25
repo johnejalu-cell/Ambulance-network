@@ -20,6 +20,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const soundEnabledRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const alertIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -58,6 +59,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       if (ctx.state === 'suspended') await ctx.resume();
       audioCtxRef.current = ctx;
       setSoundEnabled(true);
+      soundEnabledRef.current = true;
       setAudioDebug(`ready — audio state: ${ctx.state}`);
       await playBeep();
     } catch (err: any) {
@@ -87,7 +89,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   };
 
   const startAlertLoop = () => {
-    if (!soundEnabled) return;
+    if (!soundEnabledRef.current) return;
     playBeep();
     if (alertIntervalRef.current) clearInterval(alertIntervalRef.current);
     alertIntervalRef.current = setInterval(playBeep, 3000);
