@@ -50,27 +50,40 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const [paying, setPaying] = useState(false);
   const [paidNotice, setPaidNotice] = useState(false);
 
+  const [audioDebug, setAudioDebug] = useState('');
+
   const enableSound = async () => {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (ctx.state === 'suspended') await ctx.resume();
-    audioCtxRef.current = ctx;
-    setSoundEnabled(true);
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (ctx.state === 'suspended') await ctx.resume();
+      audioCtxRef.current = ctx;
+      setSoundEnabled(true);
+      setAudioDebug(`ready — audio state: ${ctx.state}`);
+      await playBeep();
+    } catch (err: any) {
+      setAudioDebug(`setup error: ${err?.message || String(err)}`);
+    }
   };
 
   const playBeep = async () => {
     const ctx = audioCtxRef.current;
-    if (!ctx) return;
-    if (ctx.state === 'suspended') await ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.4);
+    if (!ctx) { setAudioDebug('no audio context yet — tap Enable Sound Alerts first'); return; }
+    try {
+      if (ctx.state === 'suspended') await ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+      setAudioDebug(`beep played — audio state: ${ctx.state}`);
+    } catch (err: any) {
+      setAudioDebug(`beep error: ${err?.message || String(err)}`);
+    }
   };
 
   const startAlertLoop = () => {
@@ -210,6 +223,9 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       {soundEnabled && (
         <p className="text-xs text-gray-500 text-center">🔔 Sound alerts on — keep this tab open to hear new requests</p>
       )}
+      {audioDebug && (
+        <p className="text-xs text-gray-400 text-center font-mono">{audioDebug}</p>
+      )}
 
       {!pushEnabled && (
         <button
@@ -310,4 +326,3 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     </main>
   );
 }
-
