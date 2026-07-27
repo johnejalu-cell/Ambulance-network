@@ -73,6 +73,8 @@ export default function RequestAmbulance() {
     reassigningRef.current = false;
     if (data.matched) {
       setDriverPhone(data.driverPhone);
+      setFare(data.fareChargedUgx);
+      setPayerLabel(data.payerLabel);
       setTripStatus('offered');
       startOfferTimer();
     } else {
