@@ -41,5 +41,5 @@ export async function POST(req: Request) {
   await supabaseAdmin.from('ambulances').update({ status: 'busy' }).eq('id', newAmbulanceId);
   await notifyAmbulance(newAmbulanceId, { title: 'New Ambulance Request', body: `Rider needs pickup nearby — respond within 60s`, url: `/driver/${newAmbulanceId}` });
 
-  return NextResponse.json({ matched: true, driverPhone: match[0].driver_phone });
+  return NextResponse.json({ matched: true, driverPhone: match[0].driver_phone, fareChargedUgx: updates.fare_charged_ugx ?? trip.fare_charged_ugx, payerLabel: trip.payer_label });
 }
