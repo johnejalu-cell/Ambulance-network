@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import InstallPrompt from './components/InstallPrompt';
 
 const nodes = [
   { x: 60, y: 40, label: 'Kampala Central' },
@@ -14,6 +15,7 @@ const nodes = [
 export default function Home() {
   return (
     <main className="bg-paper text-midnight font-body">
+      <InstallPrompt />
       {/* NAV */}
       <nav className="max-w-6xl mx-auto flex items-center justify-between px-6 py-6">
         <span className="font-display font-bold text-lg tracking-tight">Ambulance Network</span>
@@ -154,6 +156,7 @@ export default function Home() {
         <span>Ambulance Network — Uganda</span>
         <div className="flex gap-4 flex-wrap justify-end">
           <Link href="/register" className="hover:text-midnight transition">Register Your Ambulance</Link>
+          <Link href="/sponsor" className="hover:text-midnight transition">Sponsor Account</Link>
           <Link href="/membership" className="hover:text-midnight transition">Priority Membership</Link>
           <Link href="/driver" className="hover:text-midnight transition">Driver login</Link>
           <Link href="/terms/riders" className="hover:text-midnight transition">Terms</Link>
