@@ -14,7 +14,9 @@ export async function POST(req: Request) {
 
   const { data: ambulance, error } = await supabaseAdmin.from('ambulances').insert({
     mp_name: app.mp_name, constituency: app.constituency, plate: app.plate,
-    driver_name: app.driver_name, driver_phone: app.driver_phone, status: 'offline',
+    driver_name: app.driver_name, driver_phone: app.driver_phone,
+    sponsor_phone: app.sponsor_phone, sponsor_email: app.sponsor_email,
+    status: 'offline',
   }).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
