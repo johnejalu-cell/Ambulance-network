@@ -27,9 +27,17 @@ export async function POST(req: Request) {
   }
 
   const newAmbulanceId = match[0].id;
-  await supabaseAdmin.from('trip_requests').update({
+
+  const updates: any = {
     ambulance_id: newAmbulanceId, status: 'offered', offered_at: new Date().toISOString(), excluded_ambulance_ids: excluded,
-  }).eq('id', tripId);
+  };
+
+  if (trip.payment_method === 'cash') {
+    const { data: settings } = await supabaseAdmin.from('platform_settings').select('rider_fare_ugx').eq('id', 1).single();
+    updates.fare_charged_ugx = match[0].trip_rate_ugx ?? settings?.rider_fare_ugx ?? null;
+  }
+
+  await supabaseAdmin.from('trip_requests').update(updates).eq('id', tripId);
   await supabaseAdmin.from('ambulances').update({ status: 'busy' }).eq('id', newAmbulanceId);
   await notifyAmbulance(newAmbulanceId, { title: 'New Ambulance Request', body: `Rider needs pickup nearby — respond within 60s`, url: `/driver/${newAmbulanceId}` });
 
