@@ -90,6 +90,8 @@ export default function RequestAmbulance() {
           const newRow = payload.new;
           setTripStatus(newRow.status);
           setAmbulanceId(newRow.ambulance_id);
+          setFare(newRow.fare_charged_ugx);
+          setPayerLabel(newRow.payer_label);
           if (newRow.status === 'accepted' && timerRef.current) clearInterval(timerRef.current);
           if (newRow.status === 'declined') triggerReassign();
         })
