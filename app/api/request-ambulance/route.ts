@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   let paymentMethod: 'cash' | 'membership' | 'insurer' = 'cash';
   let payerLabel: string | null = null;
   let payerAccountId: string | null = null;
-  let fare = settings?.rider_fare_ugx ?? null;
+  let fare = match[0].trip_rate_ugx ?? settings?.rider_fare_ugx ?? null;
 
   if (membership) {
     paymentMethod = 'membership';
