@@ -194,7 +194,10 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   const handleIncoming = (row: any) => {
     if (row.status === 'offered') {
       setTrip(row);
-      setCountdown(OFFER_WINDOW_SECONDS);
+      const elapsed = row.offered_at ? Math.floor((Date.now() - new Date(row.offered_at).getTime()) / 1000) : 0;
+      const remaining = Math.max(0, OFFER_WINDOW_SECONDS - elapsed);
+      setCountdown(remaining);
+      if (remaining <= 0) { setTrip(null); return; }
       startAlertLoop();
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
@@ -214,17 +217,27 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     }
   };
 
+  const [respondError, setRespondError] = useState('');
+
   const respond = async (response: 'accept' | 'decline') => {
     if (!trip) return;
     setBusy(true);
     if (timerRef.current) clearInterval(timerRef.current);
     stopAlertLoop();
-    await fetch('/api/driver/respond', {
+    const res = await fetch('/api/driver/respond', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripId: trip.id, ambulanceId, response }),
     });
     setBusy(false);
-    if (response === 'decline') setTrip(null); else setTrip({ ...trip, status: 'accepted' });
+    if (response === 'decline') { setTrip(null); return; }
+    if (res.ok) {
+      setTrip({ ...trip, status: 'accepted' });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setRespondError(data.error || 'This request is no longer available.');
+      setTrip(null);
+      setTimeout(() => setRespondError(''), 6000);
+    }
   };
 
   const completeTrip = async () => {
@@ -241,6 +254,10 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
   return (
     <main className="min-h-screen bg-gray-50 p-6 max-w-md mx-auto space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
+
+      {respondError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">{respondError}</div>
+      )}
 
       {!soundEnabled && (
         <button
