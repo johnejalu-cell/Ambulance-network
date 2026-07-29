@@ -7,11 +7,15 @@ export async function POST(req: Request) {
   const { tripId, ambulanceId, response } = await req.json();
 
   if (response === 'accept') {
-    const { error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('trip_requests')
       .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-      .eq('id', tripId).eq('ambulance_id', ambulanceId).eq('status', 'offered');
+      .eq('id', tripId).eq('ambulance_id', ambulanceId).eq('status', 'offered')
+      .select();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: 'This request was already reassigned to another ambulance.' }, { status: 409 });
+    }
     return NextResponse.json({ ok: true });
   }
 
