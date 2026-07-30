@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@/lib/authToken';
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -10,7 +11,9 @@ const PLANS: Record<string, { amount: number; days: number }> = {
 };
 
 export async function POST(req: Request) {
-  const { ambulanceId, plan } = await req.json();
+  const { ambulanceId, plan, token } = await req.json();
+  if (!verifyToken(token, ambulanceId)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const p = PLANS[plan];
   if (!p) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
 
