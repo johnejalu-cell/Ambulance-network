@@ -1,36 +1,50 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 
 export default function DriverLogin() {
   const router = useRouter();
   const [phone, setPhone] = useState('');
+  const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const findAmbulance = async () => {
     setLoading(true);
     setError('');
-    const { data, error: dbError } = await supabase.from('ambulances').select('id').eq('driver_phone', phone.trim()).maybeSingle();
+    const res = await fetch('/api/driver/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, pin }),
+    });
     setLoading(false);
-    if (dbError || !data) {
-      setError('No ambulance found for that phone number. Contact admin if you believe this is a mistake.');
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error || 'Login failed.');
       return;
     }
-    router.push(`/driver/${data.id}`);
+    const data = await res.json();
+    localStorage.setItem('driverToken', data.token);
+    localStorage.setItem('driverAmbulanceId', data.ambulanceId);
+    router.push(`/driver/${data.ambulanceId}`);
   };
 
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm w-full max-w-sm space-y-4">
         <h1 className="text-xl font-bold text-gray-900">Driver Login</h1>
-        <p className="text-sm text-gray-600">Enter the phone number registered with your ambulance.</p>
+        <p className="text-sm text-gray-600">Enter your phone number and PIN.</p>
         <input
           className="w-full border border-gray-300 rounded-lg p-3"
           placeholder="Phone number"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+        />
+        <input
+          className="w-full border border-gray-300 rounded-lg p-3"
+          placeholder="PIN (if you've been given one)"
+          type="password"
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && findAmbulance()}
         />
         {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -39,7 +53,7 @@ export default function DriverLogin() {
           onClick={findAmbulance}
           disabled={loading || !phone}
         >
-          {loading ? 'Looking up…' : 'Continue'}
+          {loading ? 'Logging in…' : 'Continue'}
         </button>
       </div>
     </main>
