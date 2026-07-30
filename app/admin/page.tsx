@@ -35,6 +35,11 @@ export default function AdminPage() {
     if (res.ok) { setAuthed(true); loadData(); } else setLoginError('Incorrect password');
   };
 
+  const adminLogout = async () => {
+    await fetch('/api/admin/logout', { method: 'POST' });
+    setAuthed(false);
+  };
+
   const loadData = async () => {
     setRefreshing(true);
     const { data: settings } = await supabase.from('platform_settings').select('rider_fare_ugx, momo_merchant_code, momo_merchant_name, membership_monthly_ugx, membership_annual_ugx').eq('id', 1).single();
@@ -126,6 +131,11 @@ export default function AdminPage() {
     loadData();
   };
 
+  const setPin = async (ambulanceId: string, pin: string) => {
+    await fetch('/api/admin/ambulances/set-pin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ambulanceId, pin }) });
+    loadData();
+  };
+
   const rejectApplication = async (applicationId: string) => {
     await fetch('/api/admin/applications/reject', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ applicationId }) });
     loadData();
@@ -163,9 +173,14 @@ export default function AdminPage() {
     <main className="min-h-screen bg-gray-50 p-6 max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <button className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" onClick={loadData} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="flex gap-2">
+          <button className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50" onClick={loadData} disabled={refreshing}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button className="bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50" onClick={adminLogout}>
+            Log Out
+          </button>
+        </div>
       </div>
 
       {/* Pricing */}
@@ -337,6 +352,24 @@ export default function AdminPage() {
                       <div className="flex gap-1 mt-1">
                         <button className="text-xs text-green-700 underline" onClick={() => setAmbulanceStatus(a.id, 'available')}>Set Available</button>
                         <button className="text-xs text-gray-500 underline" onClick={() => setAmbulanceStatus(a.id, 'offline')}>Set Offline</button>
+                      </div>
+                      <div className="flex gap-1 mt-1 items-center">
+                        <input
+                          className="border border-gray-300 rounded px-1.5 py-0.5 text-xs w-20"
+                          placeholder={a.access_pin ? '••••' : 'Set PIN'}
+                          defaultValue=""
+                          id={`pin-${a.id}`}
+                        />
+                        <button
+                          className="text-xs text-blue-700 underline"
+                          onClick={() => {
+                            const el = document.getElementById(`pin-${a.id}`) as HTMLInputElement;
+                            setPin(a.id, el.value);
+                            el.value = '';
+                          }}
+                        >
+                          Save
+                        </button>
                       </div>
                     </td>
                     <td className="py-2 pr-4">
