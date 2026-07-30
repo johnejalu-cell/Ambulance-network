@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 const LiveMap = dynamic(() => import('@/app/components/LiveMap'), { ssr: false });
@@ -22,6 +23,25 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }) {
+  const router = useRouter();
+  const tokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('driverToken');
+    const storedAmbId = localStorage.getItem('driverAmbulanceId');
+    if (!storedToken || storedAmbId !== ambulanceId) {
+      router.push('/driver');
+      return;
+    }
+    tokenRef.current = storedToken;
+  }, [ambulanceId, router]);
+
+  const logout = () => {
+    localStorage.removeItem('driverToken');
+    localStorage.removeItem('driverAmbulanceId');
+    router.push('/driver');
+  };
+
   const [trip, setTrip] = useState<any>(null);
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +79,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       });
       const res = await fetch('/api/driver/subscribe-push', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ambulanceId, subscription: sub }),
+        body: JSON.stringify({ ambulanceId, subscription: sub, token: tokenRef.current }),
       });
       if (!res.ok) {
         setPushDebug(`Server rejected subscription: ${await res.text()}`);
@@ -147,7 +167,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     setPaying(true);
     await fetch('/api/driver/request-subscription', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ambulanceId, plan: selectedPlan }),
+      body: JSON.stringify({ ambulanceId, plan: selectedPlan, token: tokenRef.current }),
     });
     setPaying(false);
     setPaidNotice(true);
@@ -176,7 +196,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       setMyPos([lat, lng]);
       fetch('/api/driver/location', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ambulanceId, lat, lng }),
+        body: JSON.stringify({ ambulanceId, lat, lng, token: tokenRef.current }),
       });
     }, undefined, { enableHighAccuracy: true, maximumAge: 5000 });
 
@@ -226,7 +246,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     stopAlertLoop();
     const res = await fetch('/api/driver/respond', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tripId: trip.id, ambulanceId, response }),
+      body: JSON.stringify({ tripId: trip.id, ambulanceId, response, token: tokenRef.current }),
     });
     setBusy(false);
     if (response === 'decline') { setTrip(null); return; }
@@ -245,7 +265,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     setBusy(true);
     const res = await fetch('/api/driver/complete-trip', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tripId: trip.id, ambulanceId }),
+      body: JSON.stringify({ tripId: trip.id, ambulanceId, token: tokenRef.current }),
     });
     setBusy(false);
     if (res.ok) setTrip(null);
@@ -253,7 +273,10 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
 
   return (
     <main className="min-h-screen bg-gray-50 p-6 max-w-md mx-auto space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
+        <button className="text-sm text-gray-500 underline" onClick={logout}>Log Out</button>
+      </div>
 
       {respondError && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">{respondError}</div>
