@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyToken } from '@/lib/authToken';
 
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function POST(req: Request) {
-  const { ambulanceId, sponsorPhone, updates } = await req.json();
+  const { ambulanceId, sponsorPhone, updates, token } = await req.json();
+  if (!verifyToken(token, sponsorPhone)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: amb } = await supabaseAdmin.from('ambulances').select('sponsor_phone').eq('id', ambulanceId).single();
   if (!amb || amb.sponsor_phone !== sponsorPhone) {
