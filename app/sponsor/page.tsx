@@ -1,9 +1,10 @@
 'use client';
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 
 export default function SponsorPanel() {
   const [phone, setPhone] = useState('');
+  const [pin, setPin] = useState('');
+  const [token, setToken] = useState('');
   const [ambulances, setAmbulances] = useState<any[]>([]);
   const [loggedIn, setLoggedIn] = useState(false);
   const [error, setError] = useState('');
@@ -11,10 +12,27 @@ export default function SponsorPanel() {
 
   const login = async () => {
     setError('');
-    const { data, error: dbError } = await supabase.from('ambulances').select('*').eq('sponsor_phone', phone.trim());
-    if (dbError || !data?.length) { setError('No ambulances found for that sponsor phone number.'); return; }
-    setAmbulances(data);
+    const res = await fetch('/api/sponsor/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone.trim(), pin }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error || 'Login failed.');
+      return;
+    }
+    const data = await res.json();
+    setAmbulances(data.ambulances);
+    setToken(data.token);
     setLoggedIn(true);
+  };
+
+  const logout = () => {
+    setLoggedIn(false);
+    setAmbulances([]);
+    setToken('');
+    setPhone('');
+    setPin('');
   };
 
   const updateField = (id: string, field: string, value: string) => {
@@ -25,7 +43,7 @@ export default function SponsorPanel() {
     const res = await fetch('/api/sponsor/update-ambulance', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        ambulanceId: amb.id, sponsorPhone: phone.trim(),
+        ambulanceId: amb.id, sponsorPhone: phone.trim(), token,
         updates: {
           mp_name: amb.mp_name, constituency: amb.constituency, plate: amb.plate,
           driver_name: amb.driver_name, driver_phone: amb.driver_phone,
@@ -49,6 +67,13 @@ export default function SponsorPanel() {
             placeholder="Sponsor phone number"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+          />
+          <input
+            className="w-full border border-gray-300 rounded-lg p-3"
+            placeholder="PIN (if you've been given one)"
+            type="password"
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && login()}
           />
           {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -62,7 +87,10 @@ export default function SponsorPanel() {
 
   return (
     <main className="min-h-screen bg-gray-50 p-6 max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Sponsor Account</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Sponsor Account</h1>
+        <button className="text-sm text-gray-500 underline" onClick={logout}>Log Out</button>
+      </div>
       <p className="text-gray-600">Manage your ambulance's details and set your own trip rate.</p>
 
       {ambulances.map((amb) => (
