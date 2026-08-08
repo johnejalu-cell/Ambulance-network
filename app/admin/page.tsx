@@ -49,7 +49,9 @@ export default function AdminPage() {
   const [dispatchAmbulancePos, setDispatchAmbulancePos] = useState<[number, number] | null>(null);
   const [dispatchCountdown, setDispatchCountdown] = useState(DISPATCH_OFFER_WINDOW);
   const dispatchTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const dispatchReassigningRef = useRef(false);
+  const [landmarks, setLandmarks] = useState<any[]>([]);
+  const [landmarkSearch, setLandmarkSearch] = useState('');
+  const [newLandmark, setNewLandmark] = useState({ name: '', constituency: '', lat: '', lng: '' });
 
   const login = async () => {
     setLoginError('');
@@ -310,7 +312,7 @@ export default function AdminPage() {
         <h2 className="font-semibold text-lg text-gray-900">📞 Dispatch by Phone</h2>
         <p className="text-sm text-gray-500">For callers without the app — creates a real request exactly like the app does, including driver notifications and live tracking.</p>
 
-        {(dispatchStatus === 'idle' || dispatchStatus === 'none' || dispatchStatus === 'unmatched') && (
+        {dispatchStatus !== 'active' && (
           <>
             <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Caller's phone number"
               value={dispatchPhone} onChange={(e) => setDispatchPhone(e.target.value)} />
