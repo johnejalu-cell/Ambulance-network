@@ -132,6 +132,12 @@ export default function AdminPage() {
     if (!selectedTripId) { setSelectedAmbulancePos(null); return; }
     const trip = activeTrips.find((t) => t.id === selectedTripId);
     if (!trip?.ambulance_id) return;
+
+    (async () => {
+      const { data } = await supabase.rpc('get_ambulance_location', { amb_id: trip.ambulance_id });
+      if (data?.[0]) setSelectedAmbulancePos([data[0].lat, data[0].lng]);
+    })();
+
     const channel = supabase
       .channel(`admin-active-amb-${trip.ambulance_id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ambulances', filter: `id=eq.${trip.ambulance_id}` },
