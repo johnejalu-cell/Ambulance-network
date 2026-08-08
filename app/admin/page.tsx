@@ -55,6 +55,10 @@ export default function AdminPage() {
   const [newLandmark, setNewLandmark] = useState({ name: '', constituency: '', lat: '', lng: '' });
   const [flyToPos, setFlyToPos] = useState<[number, number] | null>(null);
 
+  const [activeTrips, setActiveTrips] = useState<any[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [selectedAmbulancePos, setSelectedAmbulancePos] = useState<[number, number] | null>(null);
+
   const login = async () => {
     setLoginError('');
     const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
@@ -97,6 +101,13 @@ export default function AdminPage() {
     const { data: lmRows } = await supabase.from('landmarks').select('*').order('name', { ascending: true });
     setLandmarks(lmRows || []);
 
+    const { data: activeRows } = await supabase
+      .from('trip_requests')
+      .select('*, ambulances(driver_phone, mp_name)')
+      .in('status', ['offered', 'accepted', 'en_route'])
+      .order('created_at', { ascending: false });
+    setActiveTrips(activeRows || []);
+
     setRefreshing(false);
   };
 
@@ -107,6 +118,30 @@ export default function AdminPage() {
     const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const channel = supabase
+      .channel('admin-active-trips')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_requests' }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [authed]);
+
+  useEffect(() => {
+    if (!selectedTripId) { setSelectedAmbulancePos(null); return; }
+    const trip = activeTrips.find((t) => t.id === selectedTripId);
+    if (!trip?.ambulance_id) return;
+    const channel = supabase
+      .channel(`admin-active-amb-${trip.ambulance_id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ambulances', filter: `id=eq.${trip.ambulance_id}` },
+        (payload: any) => {
+          const loc = payload.new.location;
+          if (loc?.coordinates) setSelectedAmbulancePos([loc.coordinates[1], loc.coordinates[0]]);
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedTripId]);
 
   const savePricing = async () => {
     await fetch('/api/admin/pricing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rider_fare_ugx: fare, momo_merchant_code: momoCode, momo_merchant_name: momoName }) });
@@ -335,6 +370,61 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* Active Trips — persists across refresh and any admin session, unlike the dispatch creation flow below */}
+      <section className="bg-white border-2 border-blue-200 rounded-xl p-5 shadow-sm space-y-3">
+        <h2 className="font-semibold text-lg text-gray-900">🚑 Active Trips ({activeTrips.length})</h2>
+        {activeTrips.length === 0 && <p className="text-sm text-gray-500">No trips currently in progress.</p>}
+        {activeTrips.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="py-2 pr-4">Rider</th>
+                  <th className="py-2 pr-4">Status</th>
+                  <th className="py-2 pr-4">Driver</th>
+                  <th className="py-2 pr-4">Fare</th>
+                  <th className="py-2 pr-4">Started</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activeTrips.map((t) => (
+                  <tr
+                    key={t.id}
+                    className={`border-b last:border-0 cursor-pointer hover:bg-gray-50 ${selectedTripId === t.id ? 'bg-blue-50' : ''}`}
+                    onClick={() => setSelectedTripId(t.id === selectedTripId ? null : t.id)}
+                  >
+                    <td className="py-2 pr-4">{t.rider_phone}</td>
+                    <td className="py-2 pr-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${t.status === 'offered' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>{t.status}</span>
+                    </td>
+                    <td className="py-2 pr-4">{t.ambulances?.driver_phone || '—'}</td>
+                    <td className="py-2 pr-4">{t.fare_charged_ugx ? `UGX ${Number(t.fare_charged_ugx).toLocaleString()}` : '—'}</td>
+                    <td className="py-2 pr-4 text-gray-400">{new Date(t.created_at).toLocaleTimeString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {selectedTripId && (() => {
+          const trip = activeTrips.find((t) => t.id === selectedTripId);
+          if (!trip) return null;
+          const pickup: [number, number] = [trip.pickup_lat, trip.pickup_lng];
+          return (
+            <div className="pt-2">
+              <LiveMap
+                center={selectedAmbulancePos || pickup}
+                markers={[
+                  { position: pickup, label: 'Pickup' },
+                  ...(selectedAmbulancePos ? [{ position: selectedAmbulancePos, label: 'Ambulance' }] : []),
+                ]}
+              />
+            </div>
+          );
+        })()}
+      </section>
 
       {/* Dispatch by Phone */}
       <section className="bg-white border-2 border-red-200 rounded-xl p-5 shadow-sm space-y-4">
