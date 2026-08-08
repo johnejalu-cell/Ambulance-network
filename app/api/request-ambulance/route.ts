@@ -5,7 +5,7 @@ import { notifyAmbulance } from '@/lib/webpush';
 const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 export async function POST(req: Request) {
-  const { riderPhone, lat, lng, insuranceCode } = await req.json();
+  const { riderPhone, lat, lng, insuranceCode, dropoffNote } = await req.json();
 
   const { data: match, error: matchErr } = await supabaseAdmin
     .rpc('nearest_available_ambulance', { p_lat: lat, p_lng: lng, p_exclude: [] });
@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     .from('trip_requests')
     .insert({
       rider_phone: riderPhone, pickup_lat: lat, pickup_lng: lng, ambulance_id: ambulanceId,
-      status: 'offered', offered_at: new Date().toISOString(),
+      status: 'offered', offered_at: new Date().toISOString(), dropoff_note: dropoffNote || null,
       fare_charged_ugx: fare, payment_method: paymentMethod, payer_label: payerLabel, payer_account_id: payerAccountId,
     })
     .select().single();
