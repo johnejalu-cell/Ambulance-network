@@ -49,9 +49,11 @@ export default function AdminPage() {
   const [dispatchAmbulancePos, setDispatchAmbulancePos] = useState<[number, number] | null>(null);
   const [dispatchCountdown, setDispatchCountdown] = useState(DISPATCH_OFFER_WINDOW);
   const dispatchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dispatchReassigningRef = useRef(false);
   const [landmarks, setLandmarks] = useState<any[]>([]);
   const [landmarkSearch, setLandmarkSearch] = useState('');
   const [newLandmark, setNewLandmark] = useState({ name: '', constituency: '', lat: '', lng: '' });
+  const [flyToPos, setFlyToPos] = useState<[number, number] | null>(null);
 
   const login = async () => {
     setLoginError('');
@@ -91,6 +93,10 @@ export default function AdminPage() {
 
     const appsRes = await fetch('/api/admin/applications');
     if (appsRes.ok) { const appsData = await appsRes.json(); setApplications(appsData.applications || []); }
+
+    const { data: lmRows } = await supabase.from('landmarks').select('*').order('name', { ascending: true });
+    setLandmarks(lmRows || []);
+
     setRefreshing(false);
   };
 
@@ -268,8 +274,31 @@ export default function AdminPage() {
     setDispatchStatus('idle'); setDispatchTripId(null); dispatchTripIdRef.current = null;
     setDispatchAmbulanceId(null); setDispatchAmbulancePos(null); setDispatchDriverPhone('');
     setDispatchPayerLabel(null); setDispatchPhone(''); setDispatchNote(''); setDispatchPickup(null);
+    setLandmarkSearch(''); setFlyToPos(null);
     if (dispatchTimerRef.current) clearInterval(dispatchTimerRef.current);
   };
+
+  const addLandmark = async () => {
+    if (!newLandmark.name || !newLandmark.lat || !newLandmark.lng) return;
+    const res = await fetch('/api/admin/landmarks', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newLandmark),
+    });
+    if (res.ok) { setNewLandmark({ name: '', constituency: '', lat: '', lng: '' }); loadData(); }
+  };
+
+  const selectLandmark = (lm: any) => {
+    const pos: [number, number] = [lm.lat, lm.lng];
+    setDispatchPickup(pos);
+    setFlyToPos(pos);
+    setLandmarkSearch(lm.name);
+  };
+
+  const filteredLandmarks = landmarkSearch
+    ? landmarks.filter((lm) =>
+        lm.name.toLowerCase().includes(landmarkSearch.toLowerCase()) ||
+        (lm.constituency || '').toLowerCase().includes(landmarkSearch.toLowerCase())
+      )
+    : [];
 
   const dispatchStatusLabel: Record<string, string> = {
     offered: `Waiting for driver to accept… (${dispatchCountdown}s)`,
@@ -319,10 +348,31 @@ export default function AdminPage() {
             <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Situation note (optional)"
               value={dispatchNote} onChange={(e) => setDispatchNote(e.target.value)} />
             <p className="text-xs text-gray-500">
-              Click the map where the caller is located
+              Click the map, or search a known landmark below, to set the caller's location
               {dispatchPickup ? ` — set at ${dispatchPickup[0].toFixed(4)}, ${dispatchPickup[1].toFixed(4)}` : ''}
             </p>
-            <PickMap center={dispatchPickup || [0.3476, 32.5825]} onPick={setDispatchPickup} />
+            <div className="relative">
+              <input
+                className="w-full border border-gray-300 rounded-lg p-3"
+                placeholder="Search landmark (hospital, town center…)"
+                value={landmarkSearch}
+                onChange={(e) => setLandmarkSearch(e.target.value)}
+              />
+              {filteredLandmarks.length > 0 && (
+                <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-md mt-1 max-h-40 overflow-y-auto">
+                  {filteredLandmarks.map((lm) => (
+                    <button
+                      key={lm.id}
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                      onClick={() => selectLandmark(lm)}
+                    >
+                      {lm.name}{lm.constituency ? ` — ${lm.constituency}` : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <PickMap center={dispatchPickup || [0.3476, 32.5825]} onPick={setDispatchPickup} flyToPosition={flyToPos} />
             <button
               className="w-full bg-red-600 hover:bg-red-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50"
               onClick={createPhoneDispatch}
@@ -370,6 +420,26 @@ export default function AdminPage() {
             )}
           </div>
         )}
+      </section>
+
+      {/* Landmarks for phone dispatch */}
+      <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+        <h2 className="font-semibold text-lg text-gray-900">Landmarks (for Phone Dispatch)</h2>
+        <p className="text-sm text-gray-500">Add known locations — hospitals, town centers — so operators can pick them instantly instead of guessing on the map when a caller can't describe their exact location.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <input className="border border-gray-300 rounded-lg p-2 text-sm" placeholder="Name (e.g. Mulago Hospital)" value={newLandmark.name} onChange={(e) => setNewLandmark({ ...newLandmark, name: e.target.value })} />
+          <input className="border border-gray-300 rounded-lg p-2 text-sm" placeholder="Constituency (optional)" value={newLandmark.constituency} onChange={(e) => setNewLandmark({ ...newLandmark, constituency: e.target.value })} />
+          <input className="border border-gray-300 rounded-lg p-2 text-sm" placeholder="Latitude" value={newLandmark.lat} onChange={(e) => setNewLandmark({ ...newLandmark, lat: e.target.value })} />
+          <input className="border border-gray-300 rounded-lg p-2 text-sm" placeholder="Longitude" value={newLandmark.lng} onChange={(e) => setNewLandmark({ ...newLandmark, lng: e.target.value })} />
+        </div>
+        <p className="text-xs text-gray-400">Tip: right-click a spot in Google Maps and tap the coordinates to copy them.</p>
+        <button className="bg-gray-900 text-white rounded-lg px-4 py-2 text-sm font-semibold" onClick={addLandmark}>Add Landmark</button>
+        <div className="border-t pt-3 space-y-1">
+          {landmarks.map((lm) => (
+            <p key={lm.id} className="text-sm text-gray-600">{lm.name}{lm.constituency ? ` — ${lm.constituency}` : ''}</p>
+          ))}
+          {landmarks.length === 0 && <p className="text-sm text-gray-400">No landmarks added yet.</p>}
+        </div>
       </section>
 
       {/* Pricing */}
