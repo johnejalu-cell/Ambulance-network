@@ -1,6 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
+
+const PickMap = dynamic(() => import('@/app/components/PickMap'), { ssr: false });
+const LiveMap = dynamic(() => import('@/app/components/LiveMap'), { ssr: false });
+const DISPATCH_OFFER_WINDOW = 60;
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -28,6 +33,23 @@ export default function AdminPage() {
   const [rosterPayerId, setRosterPayerId] = useState('');
   const [rosterText, setRosterText] = useState('');
   const [rosterMsg, setRosterMsg] = useState('');
+
+  // --- Dispatch by Phone state ---
+  const [dispatchPhone, setDispatchPhone] = useState('');
+  const [dispatchNote, setDispatchNote] = useState('');
+  const [dispatchPickup, setDispatchPickup] = useState<[number, number] | null>(null);
+  const [dispatchStatus, setDispatchStatus] = useState<'idle' | 'creating' | 'active' | 'none' | 'unmatched'>('idle');
+  const [dispatchTripId, setDispatchTripId] = useState<string | null>(null);
+  const dispatchTripIdRef = useRef<string | null>(null);
+  const [dispatchTripStatus, setDispatchTripStatus] = useState('offered');
+  const [dispatchDriverPhone, setDispatchDriverPhone] = useState('');
+  const [dispatchFare, setDispatchFare] = useState<number | null>(null);
+  const [dispatchPayerLabel, setDispatchPayerLabel] = useState<string | null>(null);
+  const [dispatchAmbulanceId, setDispatchAmbulanceId] = useState<string | null>(null);
+  const [dispatchAmbulancePos, setDispatchAmbulancePos] = useState<[number, number] | null>(null);
+  const [dispatchCountdown, setDispatchCountdown] = useState(DISPATCH_OFFER_WINDOW);
+  const dispatchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dispatchReassigningRef = useRef(false);
 
   const login = async () => {
     setLoginError('');
@@ -155,6 +177,106 @@ export default function AdminPage() {
   const latestSubFor = (ambulanceId: string) => subs.filter((s) => s.ambulance_id === ambulanceId).sort((a, b) => b.period_end.localeCompare(a.period_end))[0];
   const isActive = (sub: any) => sub && sub.payment_status === 'paid' && sub.period_end >= new Date().toISOString().slice(0, 10);
 
+  // --- Dispatch by Phone logic ---
+  const createPhoneDispatch = async () => {
+    if (!dispatchPickup) return;
+    setDispatchStatus('creating');
+    const res = await fetch('/api/request-ambulance', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ riderPhone: dispatchPhone, lat: dispatchPickup[0], lng: dispatchPickup[1], dropoffNote: dispatchNote || undefined }),
+    });
+    if (res.status === 404) { setDispatchStatus('none'); return; }
+    const data = await res.json();
+    setDispatchTripId(data.trip.id);
+    dispatchTripIdRef.current = data.trip.id;
+    setDispatchAmbulanceId(data.trip.ambulance_id);
+    setDispatchTripStatus(data.trip.status);
+    setDispatchFare(data.trip.fare_charged_ugx);
+    setDispatchPayerLabel(data.trip.payer_label);
+    setDispatchDriverPhone(data.driverPhone);
+    setDispatchStatus('active');
+    startDispatchTimer();
+  };
+
+  const startDispatchTimer = () => {
+    setDispatchCountdown(DISPATCH_OFFER_WINDOW);
+    if (dispatchTimerRef.current) clearInterval(dispatchTimerRef.current);
+    dispatchTimerRef.current = setInterval(() => {
+      setDispatchCountdown((c) => {
+        if (c <= 1) { clearInterval(dispatchTimerRef.current!); triggerDispatchReassign(); return DISPATCH_OFFER_WINDOW; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  const triggerDispatchReassign = async () => {
+    const currentTripId = dispatchTripIdRef.current;
+    if (dispatchReassigningRef.current || !currentTripId) return;
+    dispatchReassigningRef.current = true;
+    const res = await fetch('/api/reassign-ambulance', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId: currentTripId }),
+    });
+    const data = await res.json();
+    dispatchReassigningRef.current = false;
+    if (data.matched) {
+      setDispatchDriverPhone(data.driverPhone);
+      setDispatchFare(data.fareChargedUgx);
+      setDispatchPayerLabel(data.payerLabel);
+      setDispatchTripStatus('offered');
+      startDispatchTimer();
+    } else {
+      setDispatchStatus('unmatched');
+      if (dispatchTimerRef.current) clearInterval(dispatchTimerRef.current);
+    }
+  };
+
+  useEffect(() => {
+    if (!dispatchTripId) return;
+    const channel = supabase
+      .channel(`admin-dispatch-trip-${dispatchTripId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'trip_requests', filter: `id=eq.${dispatchTripId}` },
+        (payload: any) => {
+          const newRow = payload.new;
+          setDispatchTripStatus(newRow.status);
+          setDispatchAmbulanceId(newRow.ambulance_id);
+          setDispatchFare(newRow.fare_charged_ugx);
+          setDispatchPayerLabel(newRow.payer_label);
+          if (newRow.status === 'accepted' && dispatchTimerRef.current) clearInterval(dispatchTimerRef.current);
+          if (newRow.status === 'declined') triggerDispatchReassign();
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [dispatchTripId]);
+
+  useEffect(() => {
+    if (!dispatchAmbulanceId) return;
+    const channel = supabase
+      .channel(`admin-dispatch-ambulance-${dispatchAmbulanceId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ambulances', filter: `id=eq.${dispatchAmbulanceId}` },
+        (payload: any) => {
+          const loc = payload.new.location;
+          if (loc?.coordinates) setDispatchAmbulancePos([loc.coordinates[1], loc.coordinates[0]]);
+        })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [dispatchAmbulanceId]);
+
+  const resetDispatch = () => {
+    setDispatchStatus('idle'); setDispatchTripId(null); dispatchTripIdRef.current = null;
+    setDispatchAmbulanceId(null); setDispatchAmbulancePos(null); setDispatchDriverPhone('');
+    setDispatchPayerLabel(null); setDispatchPhone(''); setDispatchNote(''); setDispatchPickup(null);
+    if (dispatchTimerRef.current) clearInterval(dispatchTimerRef.current);
+  };
+
+  const dispatchStatusLabel: Record<string, string> = {
+    offered: `Waiting for driver to accept… (${dispatchCountdown}s)`,
+    accepted: 'Ambulance is on the way',
+    en_route: 'Ambulance is on the way',
+    completed: 'Trip completed',
+    cancelled: 'Request cancelled',
+  };
+
   if (!authed) {
     return (
       <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -182,6 +304,71 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* Dispatch by Phone */}
+      <section className="bg-white border-2 border-red-200 rounded-xl p-5 shadow-sm space-y-4">
+        <h2 className="font-semibold text-lg text-gray-900">📞 Dispatch by Phone</h2>
+        <p className="text-sm text-gray-500">For callers without the app — creates a real request exactly like the app does, including driver notifications and live tracking.</p>
+
+        {(dispatchStatus === 'idle' || dispatchStatus === 'none' || dispatchStatus === 'unmatched') && (
+          <>
+            <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Caller's phone number"
+              value={dispatchPhone} onChange={(e) => setDispatchPhone(e.target.value)} />
+            <input className="w-full border border-gray-300 rounded-lg p-3" placeholder="Situation note (optional)"
+              value={dispatchNote} onChange={(e) => setDispatchNote(e.target.value)} />
+            <p className="text-xs text-gray-500">
+              Click the map where the caller is located
+              {dispatchPickup ? ` — set at ${dispatchPickup[0].toFixed(4)}, ${dispatchPickup[1].toFixed(4)}` : ''}
+            </p>
+            <PickMap center={dispatchPickup || [0.3476, 32.5825]} onPick={setDispatchPickup} />
+            <button
+              className="w-full bg-red-600 hover:bg-red-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50"
+              onClick={createPhoneDispatch}
+              disabled={!dispatchPhone || !dispatchPickup || dispatchStatus === 'creating'}
+            >
+              {dispatchStatus === 'creating' ? 'Dispatching…' : 'Dispatch Ambulance'}
+            </button>
+            {dispatchStatus === 'none' && (
+              <p className="text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 text-sm">No ambulance currently available nearby.</p>
+            )}
+            {dispatchStatus === 'unmatched' && (
+              <div className="space-y-2">
+                <p className="text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 text-sm">No ambulance responded. Advise the caller to call emergency services directly.</p>
+                <button className="w-full bg-gray-900 text-white rounded-lg p-3 font-semibold" onClick={resetDispatch}>New Phone Dispatch</button>
+              </div>
+            )}
+          </>
+        )}
+
+        {dispatchStatus === 'active' && (
+          <div className="space-y-3">
+            <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+              <p className="font-semibold text-gray-900">{dispatchStatusLabel[dispatchTripStatus] || dispatchTripStatus}</p>
+              <p className="text-sm text-gray-600">Caller: <span className="font-medium">{dispatchPhone}</span></p>
+              <p className="text-sm text-gray-600">Driver: <span className="font-medium">{dispatchDriverPhone}</span></p>
+              {dispatchFare !== null && (
+                <p className="text-sm text-gray-600">
+                  {dispatchPayerLabel ? <>Covered by <span className="font-medium">{dispatchPayerLabel}</span></> : <>Fare: <span className="font-medium">UGX {dispatchFare.toLocaleString()}</span> — caller pays driver directly</>}
+                </p>
+              )}
+            </div>
+
+            {dispatchPickup && (
+              <LiveMap
+                center={dispatchAmbulancePos || dispatchPickup}
+                markers={[
+                  { position: dispatchPickup, label: 'Caller' },
+                  ...(dispatchAmbulancePos ? [{ position: dispatchAmbulancePos, label: 'Ambulance' }] : []),
+                ]}
+              />
+            )}
+
+            {(dispatchTripStatus === 'completed' || dispatchTripStatus === 'cancelled') && (
+              <button className="w-full bg-gray-900 text-white rounded-lg p-3 font-semibold" onClick={resetDispatch}>New Phone Dispatch</button>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* Pricing */}
       <section className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
