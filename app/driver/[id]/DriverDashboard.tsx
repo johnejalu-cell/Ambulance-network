@@ -351,6 +351,12 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
           ) : (
             <p className="text-sm text-gray-500">Collect cash payment on arrival</p>
           )}
+          <a
+            href={`tel:${trip.rider_phone}`}
+            className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-3 font-semibold"
+          >
+            📞 Call Rider — confirm fare &amp; situation
+          </a>
           <button className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg p-3 font-semibold disabled:opacity-50" onClick={completeTrip} disabled={busy}>
             {busy ? 'Completing…' : 'Mark Completed'}
           </button>
