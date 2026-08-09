@@ -19,32 +19,39 @@ export default function RiderTerms() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">3. Payment</h2>
-        <p>Unless your trip is covered by an active Priority Membership or a linked insurer/corporate account, the fare shown is payable by you directly to the driver at the time of service. The Platform does not collect this payment and is not a party to it. Fares are set and may be changed by the Platform from time to time; where you hold an active Priority Membership, your fare is locked at the rate in effect when you subscribed.</p>
+        <h2 className="font-semibold text-lg text-gray-900">3. Payment and Fare Changes on Reassignment</h2>
+        <p>Unless your trip is covered by an active Priority Membership or a linked insurer/corporate account, the fare shown is payable by you directly to the driver at the time of service. The Platform does not collect this payment and is not a party to it. Each participating ambulance owner sets their own fare; where you hold an active Priority Membership, your fare is locked at the rate in effect when you subscribed regardless of which ambulance responds.</p>
+        <p>If the ambulance first offered your request does not respond in time, the Platform automatically offers the request to the next-nearest available ambulance, which may have a different fare. The fare displayed to you always reflects the ambulance currently assigned to your request and updates automatically if reassignment occurs. You may cancel your request at any time before or during dispatch if you do not wish to proceed at the fare shown.</p>
+        <p>The responding driver may call the phone number you provided to confirm the fare, verify your location, and check on the nature of your situation before or during the trip.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">4. Medical Care Disclaimer</h2>
+        <h2 className="font-semibold text-lg text-gray-900">4. Cancellation</h2>
+        <p>You may cancel a pending or in-progress request at any time using the Cancel option in the app. Cancelling releases the assigned ambulance to respond to other requests. Repeated or abusive cancellations may affect your ability to use the Platform.</p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-semibold text-lg text-gray-900">5. Medical Care Disclaimer</h2>
         <p>The Platform does not provide medical advice, diagnosis, or treatment, and is not responsible for the standard of medical care, competence, or conduct of any ambulance crew. Any claim relating to the quality of care or conduct during transport should be directed to the ambulance owner/operator, who remains solely responsible for the service provided.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">5. Priority Membership</h2>
+        <h2 className="font-semibold text-lg text-gray-900">6. Priority Membership</h2>
         <p>A Priority Membership entitles you to a locked fare and priority handling in dispatch communications. It is not insurance, does not guarantee ambulance availability, and does not entitle you to free transport.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">6. Insurer / Corporate Coverage</h2>
+        <h2 className="font-semibold text-lg text-gray-900">7. Insurer / Corporate Coverage</h2>
         <p>Where your trip is matched to an active insurer or corporate payer account, the Platform verifies your eligibility against records provided by that payer and tags the trip accordingly; billing arrangements are between you, your insurer/employer, and the ambulance owner. The Platform does not guarantee coverage decisions made by any third-party payer.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">7. Limitation of Liability</h2>
+        <h2 className="font-semibold text-lg text-gray-900">8. Limitation of Liability</h2>
         <p>To the maximum extent permitted by law, the Platform's liability to you arising from use of the service is limited to direct damages and excludes indirect or consequential loss. The Platform is not liable for the acts or omissions of independent ambulance owners, drivers, or medical personnel.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">8. Governing Law</h2>
+        <h2 className="font-semibold text-lg text-gray-900">9. Governing Law</h2>
         <p>These terms are governed by the laws of the Republic of Uganda.</p>
       </section>
     </main>
