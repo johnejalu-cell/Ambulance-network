@@ -24,6 +24,7 @@ export default function RequestAmbulance() {
   const [countdown, setCountdown] = useState(OFFER_WINDOW_SECONDS);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const reassigningRef = useRef(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const requestAmbulance = () => {
     setStatus('loading');
@@ -83,6 +84,19 @@ export default function RequestAmbulance() {
     }
   };
 
+  const cancelTrip = async () => {
+    const currentTripId = tripIdRef.current;
+    if (!currentTripId) return;
+    setCancelling(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+    await fetch('/api/cancel-trip', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripId: currentTripId }),
+    });
+    setCancelling(false);
+    setTripStatus('cancelled');
+  };
+
   useEffect(() => {
     if (!tripId) return;
     const channel = supabase
@@ -94,7 +108,7 @@ export default function RequestAmbulance() {
           setAmbulanceId(newRow.ambulance_id);
           setFare(newRow.fare_charged_ugx);
           setPayerLabel(newRow.payer_label);
-          if (newRow.status === 'accepted' && timerRef.current) clearInterval(timerRef.current);
+          if ((newRow.status === 'accepted' || newRow.status === 'cancelled') && timerRef.current) clearInterval(timerRef.current);
           if (newRow.status === 'declined') triggerReassign();
         })
       .subscribe();
@@ -169,6 +183,7 @@ export default function RequestAmbulance() {
                 {payerLabel ? <>Covered by <span className="font-medium">{payerLabel}</span> — no cash needed</> : <>Fare: <span className="font-medium">UGX {fare.toLocaleString()}</span> (pay driver directly)</>}
               </p>
             )}
+            <p className="text-xs text-gray-400 pt-1">The driver may call to confirm this fare and check on your situation.</p>
           </div>
 
           {riderPos && (
@@ -179,6 +194,16 @@ export default function RequestAmbulance() {
                 ...(ambulancePos ? [{ position: ambulancePos, label: 'Ambulance' }] : []),
               ]}
             />
+          )}
+
+          {(tripStatus === 'offered' || tripStatus === 'accepted' || tripStatus === 'en_route') && (
+            <button
+              className="w-full bg-white border border-red-300 text-red-700 hover:bg-red-50 rounded-lg p-3 font-semibold disabled:opacity-50"
+              onClick={cancelTrip}
+              disabled={cancelling}
+            >
+              {cancelling ? 'Cancelling…' : 'Cancel Request'}
+            </button>
           )}
 
           {(tripStatus === 'completed' || tripStatus === 'cancelled') && (
