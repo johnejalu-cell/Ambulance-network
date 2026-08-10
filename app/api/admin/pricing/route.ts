@@ -9,8 +9,10 @@ export async function POST(req: Request) {
   if (!verifyAdmin(cookies().get('admin_session')?.value)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const { rider_fare_ugx } = await req.json();
-  const { error } = await supabaseAdmin.from('platform_settings').update({ rider_fare_ugx, updated_at: new Date().toISOString() }).eq('id', 1);
+  const { rider_fare_ugx, momo_merchant_code, momo_merchant_name, max_dispatch_radius_km } = await req.json();
+  const { error } = await supabaseAdmin.from('platform_settings').update({
+    rider_fare_ugx, momo_merchant_code, momo_merchant_name, max_dispatch_radius_km, updated_at: new Date().toISOString(),
+  }).eq('id', 1);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
