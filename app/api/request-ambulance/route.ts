@@ -7,16 +7,40 @@ const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, proces
 export async function POST(req: Request) {
   const { riderPhone, lat, lng, insuranceCode, dropoffNote } = await req.json();
 
-  const { data: match, error: matchErr } = await supabaseAdmin
-    .rpc('nearest_available_ambulance', { p_lat: lat, p_lng: lng, p_exclude: [] });
+  const { data: settings } = await supabaseAdmin
+    .from('platform_settings')
+    .select('rider_fare_ugx, max_dispatch_radius_km')
+    .eq('id', 1).single();
+  const maxKm = settings?.max_dispatch_radius_km ?? 50;
 
-  if (matchErr) console.error('nearest_available_ambulance RPC error:', matchErr);
+  // Skip any ambulance this rider cancelled on recently, so a fresh request
+  // doesn't just land right back on the one they just walked away from.
+  const cancelCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  const { data: recentCancellations } = await supabaseAdmin
+    .from('trip_requests')
+    .select('ambulance_id')
+    .eq('rider_phone', riderPhone)
+    .eq('status', 'cancelled')
+    .gte('created_at', cancelCutoff);
+  const excludeIds = (recentCancellations || []).map((r) => r.ambulance_id).filter(Boolean);
 
-  if (matchErr || !match?.length) {
-    return NextResponse.json({ error: 'No ambulance currently available' }, { status: 404 });
+  let { data: match } = await supabaseAdmin.rpc('nearest_available_ambulance', {
+    p_lat: lat, p_lng: lng, p_exclude: excludeIds, p_max_km: maxKm,
+  });
+
+  // If excluding recently-cancelled ambulances leaves nothing, fall back to
+  // including them rather than stranding the rider — better a ride from the
+  // one they cancelled on than no ride at all.
+  if (!match?.length && excludeIds.length) {
+    const fallback = await supabaseAdmin.rpc('nearest_available_ambulance', {
+      p_lat: lat, p_lng: lng, p_exclude: [], p_max_km: maxKm,
+    });
+    match = fallback.data;
   }
 
-  const { data: settings } = await supabaseAdmin.from('platform_settings').select('rider_fare_ugx').eq('id', 1).single();
+  if (!match?.length) {
+    return NextResponse.json({ error: 'No ambulance currently available' }, { status: 404 });
+  }
 
   // 1. Priority membership check
   const today = new Date().toISOString().slice(0, 10);
