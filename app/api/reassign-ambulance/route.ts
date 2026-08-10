@@ -17,8 +17,11 @@ export async function POST(req: Request) {
   }
   const excluded = [...(trip.excluded_ambulance_ids || []), trip.ambulance_id].filter(Boolean);
 
+  const { data: settings } = await supabaseAdmin.from('platform_settings').select('rider_fare_ugx, max_dispatch_radius_km').eq('id', 1).single();
+  const maxKm = settings?.max_dispatch_radius_km ?? 50;
+
   const { data: match } = await supabaseAdmin.rpc('nearest_available_ambulance', {
-    p_lat: trip.pickup_lat, p_lng: trip.pickup_lng, p_exclude: excluded,
+    p_lat: trip.pickup_lat, p_lng: trip.pickup_lng, p_exclude: excluded, p_max_km: maxKm,
   });
 
   if (!match?.length) {
@@ -33,7 +36,6 @@ export async function POST(req: Request) {
   };
 
   if (trip.payment_method === 'cash') {
-    const { data: settings } = await supabaseAdmin.from('platform_settings').select('rider_fare_ugx').eq('id', 1).single();
     updates.fare_charged_ugx = match[0].trip_rate_ugx ?? settings?.rider_fare_ugx ?? null;
   }
 
