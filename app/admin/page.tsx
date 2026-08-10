@@ -17,6 +17,7 @@ export default function AdminPage() {
   const [momoName, setMomoName] = useState('');
   const [membershipMonthly, setMembershipMonthly] = useState<number>(0);
   const [membershipAnnual, setMembershipAnnual] = useState<number>(0);
+  const [maxRadiusKm, setMaxRadiusKm] = useState<number>(50);
   const [fareSaved, setFareSaved] = useState(false);
 
   const [ambulances, setAmbulances] = useState<any[]>([]);
@@ -72,10 +73,11 @@ export default function AdminPage() {
 
   const loadData = async () => {
     setRefreshing(true);
-    const { data: settings } = await supabase.from('platform_settings').select('rider_fare_ugx, momo_merchant_code, momo_merchant_name, membership_monthly_ugx, membership_annual_ugx').eq('id', 1).single();
+    const { data: settings } = await supabase.from('platform_settings').select('rider_fare_ugx, momo_merchant_code, momo_merchant_name, membership_monthly_ugx, membership_annual_ugx, max_dispatch_radius_km').eq('id', 1).single();
     if (settings) {
       setFare(settings.rider_fare_ugx); setMomoCode(settings.momo_merchant_code || ''); setMomoName(settings.momo_merchant_name || '');
       setMembershipMonthly(settings.membership_monthly_ugx); setMembershipAnnual(settings.membership_annual_ugx);
+      setMaxRadiusKm(settings.max_dispatch_radius_km ?? 50);
     }
 
     const { data: ambs, error: ambsError } = await supabase.from('ambulances').select('*').order('updated_at', { ascending: false });
@@ -150,7 +152,7 @@ export default function AdminPage() {
   }, [selectedTripId]);
 
   const savePricing = async () => {
-    await fetch('/api/admin/pricing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rider_fare_ugx: fare, momo_merchant_code: momoCode, momo_merchant_name: momoName }) });
+    await fetch('/api/admin/pricing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rider_fare_ugx: fare, momo_merchant_code: momoCode, momo_merchant_name: momoName, max_dispatch_radius_km: maxRadiusKm }) });
     await fetch('/api/admin/membership-pricing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ membership_monthly_ugx: membershipMonthly, membership_annual_ugx: membershipAnnual }) });
     setFareSaved(true);
     setTimeout(() => setFareSaved(false), 2000);
@@ -555,6 +557,15 @@ export default function AdminPage() {
             value={momoCode} onChange={(e) => setMomoCode(e.target.value)} />
           <input className="w-full border border-gray-300 rounded-lg p-2 text-sm" placeholder="Merchant / business name shown to drivers"
             value={momoName} onChange={(e) => setMomoName(e.target.value)} />
+        </div>
+
+        <div className="border-t pt-3 space-y-2">
+          <h3 className="font-medium text-gray-900 text-sm">Max Dispatch Radius</h3>
+          <div className="flex items-center gap-3">
+            <input type="number" className="border border-gray-300 rounded-lg p-2 w-32 text-sm" value={maxRadiusKm} onChange={(e) => setMaxRadiusKm(Number(e.target.value))} />
+            <span className="text-sm text-gray-500">km</span>
+          </div>
+          <p className="text-xs text-gray-500">No ambulance beyond this distance will ever be dispatched — riders see "no ambulance available" instead. Tune this to your fleet's real coverage.</p>
         </div>
 
         <div className="border-t pt-3 space-y-2">
