@@ -15,32 +15,37 @@ export default function DriverTerms() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">3. Rider Payments</h2>
+        <h2 className="font-semibold text-lg text-gray-900">3. One Login, One Vehicle</h2>
+        <p>Each driver login (phone number and PIN) and its associated platform subscription is issued for the exclusive use of a single, specific ambulance. Sharing login credentials to operate, or attempt to operate, more than one physical vehicle under a single subscription is prohibited. The Platform enforces a single active session per ambulance login and may automatically log out any earlier device when a new one signs in; the Platform may also monitor location data for patterns indicating shared or simultaneous use across vehicles. Any ambulance found to be in breach of this section may have its subscription and dispatch access suspended or terminated without refund, at the Platform's discretion.</p>
+      </section>
+
+      <section className="space-y-2">
+        <h2 className="font-semibold text-lg text-gray-900">4. Rider Payments</h2>
         <p>Except where a trip is tagged as covered by a rider's Priority Membership or an insurer/corporate payer arrangement, the fare for each trip is payable by the rider directly to the driver/owner. The Platform is not a party to this payment and does not collect, hold, or guarantee rider fares. Where a trip is billed to an insurer or corporate payer, invoicing and collection from that payer is the responsibility of the ambulance owner; the Platform's role is limited to verifying eligibility and providing trip records to support invoicing.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">4. No Guarantee of Trip Volume</h2>
+        <h2 className="font-semibold text-lg text-gray-900">5. No Guarantee of Trip Volume</h2>
         <p>The Platform does not guarantee any minimum number of trip requests, revenue, or usage to any participating ambulance. Dispatch is based on proximity and availability at the time of each request.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">5. Vehicle, Personnel, and Care Standards</h2>
+        <h2 className="font-semibold text-lg text-gray-900">6. Vehicle, Personnel, and Care Standards</h2>
         <p>The ambulance owner is solely responsible for ensuring the vehicle is roadworthy, appropriately equipped, and that all personnel are qualified and licensed under Ugandan law to provide emergency medical transport. The Platform makes no representation regarding the medical competence, licensing, or conduct of any driver or crew and accepts no liability arising from the standard of care provided.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">6. Suspension and Termination</h2>
-        <p>The Platform may suspend or remove an ambulance from dispatch for non-payment of fees, failure to respond to trip offers, complaints regarding conduct or safety, or any other reason at its reasonable discretion, with or without notice.</p>
+        <h2 className="font-semibold text-lg text-gray-900">7. Suspension and Termination</h2>
+        <p>The Platform may suspend or remove an ambulance from dispatch for non-payment of fees, failure to respond to trip offers, complaints regarding conduct or safety, breach of Section 3, or any other reason at its reasonable discretion, with or without notice.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">7. Limitation of Liability</h2>
+        <h2 className="font-semibold text-lg text-gray-900">8. Limitation of Liability</h2>
         <p>To the maximum extent permitted by law, the Platform's total liability to any ambulance partner arising from use of the service is limited to the platform fees paid by that partner in the preceding one month. The Platform is not liable for indirect, consequential, or special damages, including loss of revenue or reputational harm.</p>
       </section>
 
       <section className="space-y-2">
-        <h2 className="font-semibold text-lg text-gray-900">8. Governing Law</h2>
+        <h2 className="font-semibold text-lg text-gray-900">9. Governing Law</h2>
         <p>These terms are governed by the laws of the Republic of Uganda.</p>
       </section>
     </main>
