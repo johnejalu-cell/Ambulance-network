@@ -42,6 +42,12 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
     router.push('/driver');
   };
 
+  const kickedOut = () => {
+    localStorage.removeItem('driverToken');
+    localStorage.removeItem('driverAmbulanceId');
+    router.push('/driver?kicked=1');
+  };
+
   const [trip, setTrip] = useState<any>(null);
   const [myPos, setMyPos] = useState<[number, number] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -197,6 +203,8 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       fetch('/api/driver/location', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ambulanceId, lat, lng, token: tokenRef.current }),
+      }).then((res) => {
+        if (res.status === 401) kickedOut();
       });
     }, undefined, { enableHighAccuracy: true, maximumAge: 5000 });
 
@@ -248,6 +256,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripId: trip.id, ambulanceId, response, token: tokenRef.current }),
     });
+    if (res.status === 401) return kickedOut();
     setBusy(false);
     if (response === 'decline') { setTrip(null); return; }
     if (res.ok) {
@@ -267,6 +276,7 @@ export default function DriverDashboard({ ambulanceId }: { ambulanceId: string }
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripId: trip.id, ambulanceId, token: tokenRef.current }),
     });
+    if (res.status === 401) return kickedOut();
     setBusy(false);
     if (res.ok) setTrip(null);
   };
