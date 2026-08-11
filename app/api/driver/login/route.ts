@@ -15,5 +15,7 @@ export async function POST(req: Request) {
   }
 
   const token = signToken(amb.id);
+  await supabaseAdmin.from('ambulances').update({ active_session_token: token }).eq('id', amb.id);
+
   return NextResponse.json({ ambulanceId: amb.id, token });
 }
