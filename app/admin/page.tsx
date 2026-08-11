@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedAmbulancePos, setSelectedAmbulancePos] = useState<[number, number] | null>(null);
 
+  const [anomalies, setAnomalies] = useState<any[]>([]);
+
   const login = async () => {
     setLoginError('');
     const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
@@ -109,6 +111,13 @@ export default function AdminPage() {
       .in('status', ['offered', 'accepted', 'en_route'])
       .order('created_at', { ascending: false });
     setActiveTrips(activeRows || []);
+
+    const { data: anomalyRows } = await supabase
+      .from('location_anomalies')
+      .select('*, ambulances(mp_name, driver_name, driver_phone)')
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setAnomalies(anomalyRows || []);
 
     setRefreshing(false);
   };
@@ -378,6 +387,36 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {/* Location Anomalies */}
+      {anomalies.length > 0 && (
+        <section className="bg-white border-2 border-amber-300 rounded-xl p-5 shadow-sm space-y-3">
+          <h2 className="font-semibold text-lg text-gray-900">⚠️ Location Anomalies ({anomalies.length})</h2>
+          <p className="text-sm text-gray-500">Flagged when an ambulance's GPS jumps farther than physically possible in the time elapsed — a strong signal the same login is being used on two different vehicles at once.</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="py-2 pr-4">Ambulance</th>
+                  <th className="py-2 pr-4">Jump</th>
+                  <th className="py-2 pr-4">Implied Speed</th>
+                  <th className="py-2 pr-4">Flagged</th>
+                </tr>
+              </thead>
+              <tbody>
+                {anomalies.map((an) => (
+                  <tr key={an.id} className="border-b last:border-0">
+                    <td className="py-2 pr-4">{an.ambulances?.mp_name || an.ambulance_id}<br /><span className="text-gray-400">{an.ambulances?.driver_phone}</span></td>
+                    <td className="py-2 pr-4">{Number(an.distance_km).toFixed(1)} km in {Number(an.seconds_elapsed).toFixed(0)}s</td>
+                    <td className="py-2 pr-4 text-amber-700 font-medium">{Number(an.implied_speed_kmh).toFixed(0)} km/h</td>
+                    <td className="py-2 pr-4 text-gray-400">{new Date(an.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Active Trips — persists across refresh and any admin session, unlike the dispatch creation flow below */}
       <section className="bg-white border-2 border-blue-200 rounded-xl p-5 shadow-sm space-y-3">
