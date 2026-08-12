@@ -39,16 +39,26 @@ export async function POST(req: Request) {
     }
   }
 
+  // Location always updates, on every single ping — including mid-trip while
+  // the ambulance is 'busy'. Tracking a vehicle en route is exactly when this
+  // matters most, so it must never be gated on status.
   const { error } = await supabaseAdmin
     .from('ambulances')
     .update({
       location: `SRID=4326;POINT(${lng} ${lat})`,
       updated_at: new Date().toISOString(),
-      status: 'available',
     })
-    .eq('id', ambulanceId)
-    .neq('status', 'busy');
+    .eq('id', ambulanceId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Status is handled separately, and only ever nudges 'offline' to 'available' —
+  // it never touches 'busy', and never blocks the location write above.
+  await supabaseAdmin
+    .from('ambulances')
+    .update({ status: 'available' })
+    .eq('id', ambulanceId)
+    .eq('status', 'offline');
+
   return NextResponse.json({ ok: true });
 }
