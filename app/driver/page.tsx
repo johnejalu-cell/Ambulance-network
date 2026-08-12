@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function DriverLogin() {
+function DriverLoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [phone, setPhone] = useState('');
@@ -68,5 +68,13 @@ export default function DriverLogin() {
         </button>
       </div>
     </main>
+  );
+}
+
+export default function DriverLogin() {
+  return (
+    <Suspense fallback={null}>
+      <DriverLoginInner />
+    </Suspense>
   );
 }
